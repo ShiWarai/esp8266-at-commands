@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "http_parser.h"
 
 #define ESP_BUFFER_SIZE 512
 
@@ -58,7 +59,10 @@ BASE_RESPONSE esp_close_connection();
 BASE_RESPONSE esp_send_data(char data[], size_t size);
 BASE_RESPONSE esp_get_data(char data[], size_t size, uint32_t timeout);
 
-BASE_RESPONSE esp_send_request(char ip[], char port[], char request[], char data[], size_t size);
+BASE_RESPONSE esp_send_message(char ip[], char port[], char message[], char data[], size_t size);
+void esp_send_request(char request[], char response[], size_t size);
+headers_kv_t* esp_get_json(http_request_t* request, char buffer[], size_t size);
+http_response_t* esp_send_json(http_request_t* request, char buffer[], size_t size);
 // End
 
 #endif

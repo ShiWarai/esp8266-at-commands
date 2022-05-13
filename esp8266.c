@@ -1,5 +1,6 @@
 #include "esp8266.h"
 #include "uart_ring.h"
+#include <malloc.h>
 
 extern UART_HandleTypeDef huart1;
 
@@ -285,7 +286,7 @@ BASE_RESPONSE esp_get_data(char data[], size_t size, uint32_t timeout)
 //}
 
 
-BASE_RESPONSE esp_send_request(char ip[], char port[], char request[], char data[], size_t size)
+BASE_RESPONSE esp_send_message(char ip[], char port[], char message[], char data[], size_t size)
 {
 	uint8_t result;
 	memset(data, 0, size);
@@ -308,7 +309,7 @@ BASE_RESPONSE esp_send_request(char ip[], char port[], char request[], char data
 	{
 		printf("Connected to server!\r\n");
 
-		if(esp_send_data(request, strlen(request)) == OK_RESPONSE)
+		if(esp_send_data(message, strlen(message)) == OK_RESPONSE)
 		{
 			if(size)
 			{
@@ -327,3 +328,31 @@ BASE_RESPONSE esp_send_request(char ip[], char port[], char request[], char data
 
 	return OK_RESPONSE;
 }
+
+
+void esp_send_request(char request[], char response[], size_t size)
+{
+	http_request_t req;
+	http_response_t resp;
+	char new_request[size+1];
+	strcpy(new_request, request);
+
+	httpParseRequest(new_request, &req);
+
+	headers_kv_t* host = httpFindHeader(req.headers, req.num_headers, "Host");
+
+	char* spliter = strchr(host->value, (int)':');
+	char* ip = host->value;
+	*spliter = '\0';
+	char* port = spliter + 1;
+
+	esp_send_message(ip, port, request, response, size);
+
+	// httpParseResponse(response, &resp);
+
+	//return &resp;
+}
+
+
+headers_kv_t* esp_get_json(http_request_t* request, char buffer[], size_t size);
+http_response_t* esp_send_json(http_request_t* request, char buffer[], size_t size);
