@@ -333,7 +333,6 @@ BASE_RESPONSE esp_send_message(char ip[], char port[], char message[], char data
 void esp_send_request(char request[], char response[], size_t size)
 {
 	http_request_t req;
-	http_response_t resp;
 	char new_request[size+1];
 	strcpy(new_request, request);
 
@@ -348,11 +347,56 @@ void esp_send_request(char request[], char response[], size_t size)
 
 	esp_send_message(ip, port, request, response, size);
 
-	// httpParseResponse(response, &resp);
-
-	//return &resp;
+	return;
 }
 
 
-headers_kv_t* esp_get_json(http_request_t* request, char buffer[], size_t size);
-http_response_t* esp_send_json(http_request_t* request, char buffer[], size_t size);
+char* esp_get_http_json(char request[], char buffer[], size_t size)
+{
+	http_request_t req;
+	http_response_t res;
+	char new_request[size];
+	strcpy(new_request, request);
+
+	httpParseRequest(new_request, &req);
+
+	headers_kv_t* host = httpFindHeader(req.headers, req.num_headers, "Host");
+
+	char* spliter = strchr(host->value, (int)':');
+	char* ip = host->value;
+	*spliter = '\0';
+	char* port = spliter + 1;
+
+	esp_send_message(ip, port, request, buffer, size);
+
+	char new_response[size];
+	strcpy(new_response, buffer);
+	httpParseResponse(new_response, &res);
+
+	char* json = httpGetResponseBody(&res);
+
+	// Strip
+	size_t index = strlen(json) - 1; //
+	for(size_t i = index; i >= 0; i--)
+	{
+		if(json[i] != '\r' && json[i] != '\n')
+		{
+			index = i + 1;
+			break;
+		}
+	}
+	json[index] = '\0';
+
+	index = strlen(json) - 1;
+	for(size_t i = 0; i < index; i++)
+	{
+		if(json[i] != '\r' && json[i] != '\n')
+		{
+			index = i;
+			break;
+		}
+	}
+	json+=index;
+
+	return json;
+}

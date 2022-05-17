@@ -147,10 +147,10 @@ static int parseValue(char *raw, char **current, headers_kv_t *headers,
  *
  * @buf - temporary buffer to of which pointers to various parts of the buffer will be assigned for the key
  * and for the value;
- * @req_raw raw request
+ * @raw raw request
  * @req pointer to the http_request_t object, which is where the key->values will be stored
  */
-static int parseHeaders(int offset, char *req_raw, headers_kv_t *headers) {
+static int parseHeaders(int offset, char *raw, headers_kv_t *headers) {
 	/**
 	 * We don't want to parse the first line of the request again as that is:
 	 * GET /path/of/thing HTTP/1
@@ -160,7 +160,7 @@ static int parseHeaders(int offset, char *req_raw, headers_kv_t *headers) {
 	
 	int num_headers = 0;
 	enum HTTP_KV part = KEY;
-	char *ptr = &req_raw[offset];
+	char *ptr = &raw[offset];
 	int prev_pos = 0;
 	int new_line_count = 0;
 
@@ -170,7 +170,7 @@ static int parseHeaders(int offset, char *req_raw, headers_kv_t *headers) {
 			break;
 		}
 
-		switch (req_raw[offset]) {
+		switch (raw[offset]) {
 			case '\0':
 			case EOF: {
 				goto done;
@@ -181,15 +181,17 @@ static int parseHeaders(int offset, char *req_raw, headers_kv_t *headers) {
 				new_line_count++;
 
 				if (new_line_count == 2 && part == VALUE) {
-					prev_pos = parseValue(req_raw, &ptr, headers, prev_pos, offset, num_headers);
+					prev_pos = parseValue(raw, &ptr, headers, prev_pos, offset, num_headers);
 					part = KEY;
+					new_line_count = 0;
 					num_headers++;
-				} else if (new_line_count >= 4) {
+				} else if (new_line_count == 2 && raw[offset-1] == '\r' && raw[offset] == '\n') {
 					part = CONTENT;
-					headers[num_headers].value = ptr;
+					headers[num_headers].value = ptr + 2;
 					headers[num_headers].key = "body";
 					headers[num_headers].key_len = 4;
 					headers[num_headers].value_len = strlen(ptr);
+					goto done;
 				}
 
 				break;
@@ -200,7 +202,7 @@ static int parseHeaders(int offset, char *req_raw, headers_kv_t *headers) {
 					continue;
 
 				if (part == KEY) {
-					prev_pos = parseKey(req_raw, ptr, headers, offset, num_headers);
+					prev_pos = parseKey(raw, ptr, headers, offset, num_headers);
 					part = VALUE;
 				}
 				break;
@@ -226,14 +228,12 @@ headers_kv_t *httpFindHeader(headers_kv_t *headers, int num_headers, char *key) 
 }
 
 char *httpGetResponseBody(http_response_t *res) {
-	if (res->num_headers == 0)
-		return NULL;
-
-	headers_kv_t header = res->headers[res->num_headers+1];
+	headers_kv_t header = res->headers[res->num_headers];
 
 	if (strcmp(header.key, "body") == 0)
 		return header.value;
-	return NULL;
+	else
+		return NULL;
 }
 
 void httpParseRequest(char *req_raw, http_request_t *req) {
@@ -245,5 +245,5 @@ void httpParseRequest(char *req_raw, http_request_t *req) {
 void httpParseResponse(char *res_raw, http_response_t *res) {
 	int offset = __parse_response(res_raw, res);
 	int num_headers = parseHeaders(offset, res_raw, res->headers);
-	res->num_headers = num_headers - 2; // body is -1
+	res->num_headers = num_headers;
 }

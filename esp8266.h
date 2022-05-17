@@ -61,8 +61,7 @@ BASE_RESPONSE esp_get_data(char data[], size_t size, uint32_t timeout);
 
 BASE_RESPONSE esp_send_message(char ip[], char port[], char message[], char data[], size_t size);
 void esp_send_request(char request[], char response[], size_t size);
-headers_kv_t* esp_get_json(http_request_t* request, char buffer[], size_t size);
-http_response_t* esp_send_json(http_request_t* request, char buffer[], size_t size);
+char* esp_get_http_json(char request[], char buffer[], size_t size);
 // End
 
 #endif
